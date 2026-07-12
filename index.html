@@ -21,14 +21,14 @@
 <body>
 
 <!-- Cercle micro blanc — unique élément visuel -->
-<div id="version" style="position:fixed;bottom:8px;left:0;right:0;text-align:center;color:#444;font-family:monospace;font-size:14px;">v1.2</div>
+<div id="version" style="position:fixed;bottom:8px;left:0;right:0;text-align:center;color:#444;font-family:monospace;font-size:14px;">v1.3</div>
 <div id="circle">
   <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
 </div>
 
 <script>
 /* ================================================================
-   VOCALMAILPLUS v1.2 (base v10.0 + IA) — Interface 100 % vocale
+   VOCALMAILPLUS v1.3 (base v10.0 + IA) — Interface 100 % vocale
    Écran noir + cercle blanc. Toucher l'écran pour démarrer.
    Connexion au Worker Cloudflare — clé permanente, zéro authentification.
    ================================================================ */
@@ -331,6 +331,53 @@ function goHelp() {
   });
 }
 
+/* Compréhension libre : Claude devine l'intention et on l'exécute */
+async function aiUnderstand(t) {
+  try {
+    const d = await api('/ai/comprend', 'POST', { texte: t, contexte: S.screen });
+    switch (d.action) {
+      case 'lire':      return goLoadEmails(false);
+      case 'anciens':   return goLoadEmails(true);
+      case 'ecrire':    return d.to ? aiCompose(d) : goComposeRecipient();
+      case 'chercher':  return d.recherche ? goSearch(d.recherche) : goSearchQ();
+      case 'suivant':   return goNextEmail();
+      case 'precedent': return goPrevEmail();
+      case 'relire':    return goReadEmail(S.idx);
+      case 'repondre':  return goReply();
+      case 'stop':      return goMenu();
+      case 'aide':      return goHelp();
+      case 'quitter':   return goGoodbye();
+      case 'parler':
+        if (d.reponse) { speak(d.reponse, () => setTimeout(() => reask(S.screen === 'READING_EMAIL' ? 'EMAIL_ACTIONS' : S.screen), 800)); return; }
+      default:
+        speak('Je n’ai pas compris. Dis AIDE pour connaître les possibilités.');
+    }
+  } catch(e) {
+    speak('Je n’ai pas compris. Dis AIDE pour connaître les possibilités.');
+  }
+}
+
+/* Mail dicté en une phrase : destinataire résolu, texte mis en forme, confirmation */
+async function aiCompose(d) {
+  S.compose = { to: d.to, toEmail: '', subject: d.objet || '', body: d.texte || '', replyId: null };
+  speak(`Je prépare un mail pour ${d.to}.`);
+  try {
+    const c = await api('/contacts?q=' + encodeURIComponent(d.to));
+    const list = c.contacts || [];
+    if (list.length) { S.compose.to = list[0].name; S.compose.toEmail = list[0].email; }
+  } catch(e) {}
+  if (S.compose.body) {
+    try {
+      const r = await api('/ai/reformule', 'POST', { text: S.compose.body, to: S.compose.to });
+      if (r.mail) S.compose.body = r.mail;
+    } catch(e) {}
+    if (!S.compose.subject) S.compose.subject = 'Message';
+    return goComposeConfirm();
+  }
+  if (!S.compose.subject) return goComposeSubject();
+  return goComposeBody();
+}
+
 /* ── Dispatcher ────────────────────────────────────────────────── */
 const DISPATCH = {
   MAIN_MENU:         hMenu,
@@ -395,7 +442,7 @@ function hMenu(t) {
     const m = N(t).match(/(?:cherche|trouve|retrouve|recherche).*?de\s+(.+)/);
     return m ? goSearch(m[1]) : goSearchQ();
   }
-  confused(() => speak('Dites LIRE, ÉCRIRE, ou CHERCHER.'));
+  aiUnderstand(t);
 }
 
 function goGoodbye() {
