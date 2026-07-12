@@ -21,7 +21,7 @@
 <body>
 
 <!-- Cercle micro blanc — unique élément visuel -->
-<div id="version" style="position:fixed;bottom:8px;left:0;right:0;text-align:center;color:#444;font-family:monospace;font-size:14px;">v1.9</div>
+<div id="version" style="position:fixed;bottom:24px;left:0;right:0;text-align:center;color:#888;font-family:monospace;font-size:42px;font-weight:bold;">v2.0</div>
 <div id="debug" style="position:fixed;bottom:28px;left:8px;right:8px;text-align:center;color:#555;font-family:monospace;font-size:12px;min-height:16px;"></div>
 <div id="circle">
   <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
@@ -29,7 +29,7 @@
 
 <script>
 /* ================================================================
-   VOCALMAILPLUS v1.9 (base v10.0 + IA) — Interface 100 % vocale
+   VOCALMAILPLUS v2.0 (base v10.0 + IA) — Interface 100 % vocale
    Écran noir + cercle blanc. Toucher l'écran pour démarrer.
    Connexion au Worker Cloudflare — clé permanente, zéro authentification.
    ================================================================ */
@@ -451,7 +451,10 @@ function onUtterance(t) {
      du micro — on l'ignore. Au-delà, c'est l'utilisateur qui répond
      (même avec les mots de la question). */
   const nt = N(t);
-  if (nt.length > 5 && Date.now() - _ttsEnd < 1200 && N(_lastSpoken).includes(nt)) return;
+  /* Les commandes exactes d'un seul tenant passent TOUJOURS,
+     même dans la fenêtre anti-écho (réponse rapide de l'utilisateur) */
+  const coreCmd = ['SUITE','PRECEDENT','RELIRE','REPONDRE','OUI','NON','STOP','RETOUR','AIDE','LIRE','ECRIRE','CHERCHER','ANCIENS','ANCIEN','RECENT','TERMINER','ANNULER','QUITTER'].some(k => isExact(t, k));
+  if (!coreCmd && nt.length > 5 && Date.now() - _ttsEnd < 1200 && N(_lastSpoken).includes(nt)) return;
   /* Pendant TTS : ignorer sauf interruptions en lecture */
   if (S.talking) {
     return; /* micro fermé pendant la parole : rien n'arrive ici */
