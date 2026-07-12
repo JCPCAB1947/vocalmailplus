@@ -21,7 +21,7 @@
 <body>
 
 <!-- Cercle micro blanc — unique élément visuel -->
-<div id="version" style="position:fixed;bottom:8px;left:0;right:0;text-align:center;color:#444;font-family:monospace;font-size:14px;">v1.7</div>
+<div id="version" style="position:fixed;bottom:8px;left:0;right:0;text-align:center;color:#444;font-family:monospace;font-size:14px;">v1.8</div>
 <div id="debug" style="position:fixed;bottom:28px;left:8px;right:8px;text-align:center;color:#555;font-family:monospace;font-size:12px;min-height:16px;"></div>
 <div id="circle">
   <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
@@ -29,7 +29,7 @@
 
 <script>
 /* ================================================================
-   VOCALMAILPLUS v1.7 (base v10.0 + IA) — Interface 100 % vocale
+   VOCALMAILPLUS v1.8 (base v10.0 + IA) — Interface 100 % vocale
    Écran noir + cercle blanc. Toucher l'écran pour démarrer.
    Connexion au Worker Cloudflare — clé permanente, zéro authentification.
    ================================================================ */
@@ -432,14 +432,15 @@ function fixNames(t) {
     .replace(/p[ée]nochett?e?/gi, 'Pénochet');
 }
 
-/* Rendre un texte prononçable proprement (JC, abréviations) — pour la relecture */
+/* Rendre un texte prononçable proprement (JC, jc, J-C, JCP…) — pour TOUTE la voix */
 function fixTTS(t) {
   if (!t) return '';
   return t
-    .replace(/\bJCP\b/g, 'Ji Cé Pé')
-    .replace(/\bJ\.?-?C\.?P\.?\b/g, 'Ji Cé Pé')
-    .replace(/\bJC\b/g, 'Ji Cé')
-    .replace(/\bJ\.-?C\.(?=\s|,|$)/g, 'Ji Cé');
+    .replace(/\bJ\.?\s?-?\s?C\.?\s?P\.?(?![a-zà-ÿA-ZÀ-Ÿ])/g, 'Ji Cé Pé')
+    .replace(/\bJ\.?\s?-?\s?C\.?(?![a-zà-ÿA-ZÀ-Ÿ])/g, 'Ji Cé')
+    .replace(/\bj\.?\s?-?\s?c\.?\s?p\.?(?![a-zà-ÿA-ZÀ-Ÿ])/g, 'Ji Cé Pé')
+    .replace(/\bj\.?\s?-?\s?c\.?(?![a-zà-ÿA-ZÀ-Ÿ])/g, 'Ji Cé')
+    .replace(/\bJc\.?p?\b/g, m => m.toLowerCase().includes('p') ? 'Ji Cé Pé' : 'Ji Cé');
 }
 
 function onUtterance(t) {
@@ -564,7 +565,8 @@ async function goReadEmail(idx) {
   if (!S.introDone) {
     S.introDone = true; /* l’intro du boot vient d’annoncer ce message */
   } else {
-    speak(`Message reçu ${dateFR(meta.date)}, envoyé par ${meta.from_name}, avec comme objet : ${meta.subject}.`);
+    speak(`${S.navAnnounce || ''}Reçu ${dateFR(meta.date)}, envoyé par ${meta.from_name}, avec comme objet : ${meta.subject}.`);
+    S.navAnnounce = '';
   }
   try {
     const m = await api('/read?id=' + encodeURIComponent(meta.id));
@@ -610,14 +612,14 @@ function hActions(t) {
 
 function goNextEmail() {
   const ni = S.idx + S.step;
-  if (ni >= 0 && ni < S.emails.length) return goReadEmail(ni);
+  if (ni >= 0 && ni < S.emails.length) { S.navAnnounce = 'Message suivant. '; return goReadEmail(ni); }
   speak("C'était le dernier mail. Voulez-vous lire, envoyer, ou rechercher un mail ?");
   S.screen = 'MAIN_MENU';
 }
 
 function goPrevEmail() {
   const ni = S.idx - S.step;
-  if (ni >= 0 && ni < S.emails.length) return goReadEmail(ni);
+  if (ni >= 0 && ni < S.emails.length) { S.navAnnounce = 'Message précédent. '; return goReadEmail(ni); }
   speak("Tu es au message le plus récent. Suivant, répondre, ou anciens messages ?");
   S.screen = 'EMAIL_ACTIONS';
 }
