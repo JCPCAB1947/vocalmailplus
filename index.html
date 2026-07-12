@@ -21,14 +21,14 @@
 <body>
 
 <!-- Cercle micro blanc — unique élément visuel -->
-<div id="version" style="position:fixed;bottom:8px;left:0;right:0;text-align:center;color:#444;font-family:monospace;font-size:14px;">v1.4</div>
+<div id="version" style="position:fixed;bottom:8px;left:0;right:0;text-align:center;color:#444;font-family:monospace;font-size:14px;">v1.5</div>
 <div id="circle">
   <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
 </div>
 
 <script>
 /* ================================================================
-   VOCALMAILPLUS v1.4 (base v10.0 + IA) — Interface 100 % vocale
+   VOCALMAILPLUS v1.5 (base v10.0 + IA) — Interface 100 % vocale
    Écran noir + cercle blanc. Toucher l'écran pour démarrer.
    Connexion au Worker Cloudflare — clé permanente, zéro authentification.
    ================================================================ */
@@ -344,6 +344,7 @@ async function aiUnderstand(t) {
       case 'precedent': return goPrevEmail();
       case 'relire':    return goReadEmail(S.idx);
       case 'repondre':  return goReply();
+      case 'adresse':   return aiAddress(d.to);
       case 'stop':      return goMenu();
       case 'aide':      return goHelp();
       case 'quitter':   return goGoodbye();
@@ -354,6 +355,24 @@ async function aiUnderstand(t) {
     }
   } catch(e) {
     speak('Je n’ai pas compris. Dis AIDE pour connaître les possibilités.');
+  }
+}
+
+/* Épeler l'adresse d'un contact */
+async function aiAddress(name) {
+  if (!name) { speak('De qui veux-tu l’adresse ?'); return; }
+  try {
+    const c = await api('/contacts?q=' + encodeURIComponent(name));
+    const list = c.contacts || [];
+    if (!list.length) {
+      speak(`Je n’ai trouvé personne au nom de ${name} dans tes messages.`,
+            () => setTimeout(() => reask(S.screen), 800));
+      return;
+    }
+    speak(`L’adresse de ${list[0].name} est : ${spellAddr(list[0].email)}.`,
+          () => setTimeout(() => reask(S.screen === 'READING_EMAIL' ? 'EMAIL_ACTIONS' : S.screen), 1200));
+  } catch(e) {
+    speak('La recherche a échoué.');
   }
 }
 
@@ -434,14 +453,13 @@ function goMenu() {
 }
 
 function hMenu(t) {
-  if (isPromptEcho(t, ['LIRE','ECRIRE','CHERCHER'])) return; /* écho de la question */
+  if (isPromptEcho(t, ['LIRE','ECRIRE','CHERCHER'])) return;
   S.confusion = 0;
-  if (is(t, 'LIRE'))   return goLoadEmails(false);
-  if (is(t, 'ECRIRE')) return goComposeRecipient();
-  if (is(t, 'CHERCHER') || /cherche|trouve|retrouve|recherche/.test(N(t))) {
-    const m = N(t).match(/(?:cherche|trouve|retrouve|recherche).*?de\s+(.+)/);
-    return m ? goSearch(m[1]) : goSearchQ();
-  }
+  /* Circuit court : mots seuls exacts. Tout le reste → Claude. */
+  if (isExact(t,'LIRE'))     return goLoadEmails(false);
+  if (isExact(t,'ANCIENS'))  return goLoadEmails(true);
+  if (isExact(t,'ECRIRE'))   return goComposeRecipient();
+  if (isExact(t,'CHERCHER')) return goSearchQ();
   aiUnderstand(t);
 }
 
@@ -551,16 +569,15 @@ function hReading(t) {
 }
 
 function hActions(t) {
-  if (isPromptEcho(t, ['RELIRE','PRECEDENT','SUITE','REPONDRE'])) return; /* écho de la question */
+  if (isPromptEcho(t, ['RELIRE','PRECEDENT','SUITE','REPONDRE'])) return;
   S.confusion = 0;
-  if (is(t,'RELIRE'))    return goReadEmail(S.idx);
-  if (is(t,'REPONDRE'))  return goReply();
-  if (is(t,'ANCIENS'))   return goLoadEmails(true);
-  if (is(t,'PRECEDENT')) return goPrevEmail();
-  if (is(t,'SUITE'))     return goNextEmail();
-  if (is(t,'RETOUR') || is(t,'STOP')) return goMenu();
-  if (is(t,'ECRIRE'))   return goComposeRecipient();
-  confused(() => speak('Relire, suivant, ou répondre ?'));
+  if (isExact(t,'RELIRE'))    return goReadEmail(S.idx);
+  if (isExact(t,'REPONDRE'))  return goReply();
+  if (isExact(t,'ANCIENS'))   return goLoadEmails(true);
+  if (isExact(t,'PRECEDENT')) return goPrevEmail();
+  if (isExact(t,'SUITE'))     return goNextEmail();
+  if (isExact(t,'RETOUR') || isExact(t,'STOP')) return goMenu();
+  aiUnderstand(t);
 }
 
 function goNextEmail() {
