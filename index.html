@@ -21,7 +21,7 @@
 <body>
 
 <!-- Cercle micro blanc — unique élément visuel -->
-<div id="version" style="position:fixed;bottom:8px;left:0;right:0;text-align:center;color:#444;font-family:monospace;font-size:14px;">v1.8</div>
+<div id="version" style="position:fixed;bottom:8px;left:0;right:0;text-align:center;color:#444;font-family:monospace;font-size:14px;">v1.9</div>
 <div id="debug" style="position:fixed;bottom:28px;left:8px;right:8px;text-align:center;color:#555;font-family:monospace;font-size:12px;min-height:16px;"></div>
 <div id="circle">
   <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
@@ -29,7 +29,7 @@
 
 <script>
 /* ================================================================
-   VOCALMAILPLUS v1.8 (base v10.0 + IA) — Interface 100 % vocale
+   VOCALMAILPLUS v1.9 (base v10.0 + IA) — Interface 100 % vocale
    Écran noir + cercle blanc. Toucher l'écran pour démarrer.
    Connexion au Worker Cloudflare — clé permanente, zéro authentification.
    ================================================================ */
@@ -81,9 +81,9 @@ function _flush() {
   const { txt, then } = _q.shift();
   const u = new SpeechSynthesisUtterance(txt);
   u.lang = 'fr-FR'; u.rate = 1.0; u.pitch = 1.0; u.volume = 1;
-  const fv = _vx.find(v => v.lang.startsWith('fr') && v.localService)
-           || _vx.find(v => v.lang.startsWith('fr'));
-  if (fv) u.voice = fv;
+  /* Aucun choix de voix dans le code : Safari utilise la voix par défaut
+     de l'appareil (Réglages > Accessibilité > Contenu énoncé > Voix).
+     Aurélie sur l'iPad de Philippe, au choix de chacun ailleurs. */
   u.onend  = () => { _spk = false; S.talking = false; if (then) then(); _flush(); };
   u.onerror = () => { _spk = false; S.talking = false; _flush(); };
   /* La PREMIÈRE phrase doit partir immédiatement, dans le geste du
