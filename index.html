@@ -27,7 +27,7 @@
 
 <script>
 /* ================================================================
-   VOCALMAILPLUS v1.0 (base VocalMail v10.0) — Interface 100 % vocale
+   VOCALMAILPLUS v1.1 (base v10.0 + IA) — Interface 100 % vocale
    Écran noir + cercle blanc. Toucher l'écran pour démarrer.
    Connexion au Worker Cloudflare — clé permanente, zéro authentification.
    ================================================================ */
@@ -644,12 +644,18 @@ function goComposeBody() {
   if (!S.talking) speak("Dictez votre message. Tapez deux fois sur l’écran pour terminer, ou dites ANNULER pour abandonner.");
 }
 
-function finishDictation() {
+async function finishDictation() {
   if (!S.compose || !S.compose.body.trim()) {
     speak("Je n’ai rien reçu. Dictez votre message, puis tapez deux fois pour terminer.");
     return;
   }
-  speak('Message terminé. Je te relis le mail.', () => setTimeout(goComposeConfirm, 500));
+  S.screen = 'LOADING';
+  speak('Message terminé. Je le mets en forme.');
+  try {
+    const d = await api('/ai/reformule', 'POST', { text: S.compose.body, to: S.compose.to });
+    if (d.mail) S.compose.body = d.mail;
+  } catch(e) { /* IA indisponible : on garde la dictée brute */ }
+  goComposeConfirm();
 }
 
 function hBody(t) {
