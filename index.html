@@ -21,14 +21,14 @@
 <body>
 
 <!-- Cercle micro blanc — unique élément visuel -->
-<div id="version" style="position:fixed;bottom:8px;left:0;right:0;text-align:center;color:#444;font-family:monospace;font-size:14px;">v1.5</div>
+<div id="version" style="position:fixed;bottom:8px;left:0;right:0;text-align:center;color:#444;font-family:monospace;font-size:14px;">v1.6</div>
 <div id="circle">
   <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
 </div>
 
 <script>
 /* ================================================================
-   VOCALMAILPLUS v1.5 (base v10.0 + IA) — Interface 100 % vocale
+   VOCALMAILPLUS v1.6 (base v10.0 + IA) — Interface 100 % vocale
    Écran noir + cercle blanc. Toucher l'écran pour démarrer.
    Connexion au Worker Cloudflare — clé permanente, zéro authentification.
    ================================================================ */
@@ -324,7 +324,7 @@ function goHelp() {
     'QUITTER, pour fermer.',
     'Pendant la lecture : un tap pour faire une pause. Deux taps pour passer au suivant.',
     'Glisse vers le bas pour arrêter la lecture. Glisse vers le haut pour revenir à l’accueil.',
-    'Pendant la dictée : deux taps pour terminer le message.',
+    'Pendant la dictée : un tap pour terminer le message.',
   ], () => {
     S.helping = false;
     reask(S.helpReturn);
@@ -415,7 +415,25 @@ const DISPATCH = {
   RETRY_SEND:        hRetrySend,
 };
 
+/* Corrections des noms propres que la reconnaissance massacre */
+function fixNames(t) {
+  return (t || '')
+    .replace(/pinochet/gi, 'Pénochet')
+    .replace(/p[ée]nochett?e?/gi, 'Pénochet');
+}
+
+/* Rendre un texte prononçable proprement (JC, abréviations) — pour la relecture */
+function fixTTS(t) {
+  if (!t) return '';
+  return t
+    .replace(/\bJCP\b/g, 'Ji Cé Pé')
+    .replace(/\bJ\.?-?C\.?P\.?\b/g, 'Ji Cé Pé')
+    .replace(/\bJC\b/g, 'Ji Cé')
+    .replace(/\bJ\.-?C\.(?=\s|,|$)/g, 'Ji Cé');
+}
+
 function onUtterance(t) {
+  t = fixNames(t);
   console.log('⟫ ' + t);
   /* ANTI-ÉCHO : dans la fenêtre de 1,2 s après la fin de la voix,
      un énoncé qui est un fragment de la phrase prononcée est l'écho
@@ -616,7 +634,7 @@ function goReply() {
     subject: 'Re : ' + m.subject.replace(/^Re\s*:\s*/i, ''),
     body: '', replyId: m.id,
   };
-  speak(`Réponse à ${m.from_name}. Dictez votre message, puis tapez deux fois sur l’écran pour terminer.`);
+  speak(`Réponse à ${m.from_name}. Dicte ton message, puis tape une fois sur l’écran pour terminer.`);
   S.screen = 'COMPOSE_BODY';
 }
 
@@ -706,12 +724,12 @@ function hSubject(t) {
 
 function goComposeBody() {
   S.screen = 'COMPOSE_BODY'; S.confusion = 0;
-  if (!S.talking) speak("Dictez votre message. Tapez deux fois sur l’écran pour terminer, ou dites ANNULER pour abandonner.");
+  if (!S.talking) speak("Dicte ton message. Tape une fois sur l’écran pour terminer, ou dis ANNULER pour abandonner.");
 }
 
 async function finishDictation() {
   if (!S.compose || !S.compose.body.trim()) {
-    speak("Je n’ai rien reçu. Dictez votre message, puis tapez deux fois pour terminer.");
+    speak("Je n’ai rien reçu. Dicte ton message, puis tape une fois pour terminer.");
     return;
   }
   S.screen = 'LOADING';
@@ -739,7 +757,7 @@ function hBody(t) {
 
 function goComposeConfirm() {
   S.screen = 'COMPOSE_CONFIRM'; S.confusion = 0;
-  speak(`À ${S.compose.to}. Objet : ${S.compose.subject}. Message : ${S.compose.body}. Dites OUI pour envoyer, NON pour annuler.`);
+  speak(`À ${fixTTS(S.compose.to)}. Objet : ${fixTTS(S.compose.subject)}. Message : ${fixTTS(S.compose.body)}. Dis OUI pour envoyer, NON pour annuler.`);
 }
 
 function hConfirm(t) {
@@ -884,9 +902,9 @@ function doTap() {
       }
       return;
     }
-    /* Pendant la DICTÉE : 2 taps = message terminé */
+    /* Pendant la DICTÉE : UN tap suffit pour terminer */
     if (S.screen === 'COMPOSE_BODY') {
-      if (n >= 2) finishDictation();
+      finishDictation();
       return;
     }
     if (S.screen !== 'READING_EMAIL') return;
