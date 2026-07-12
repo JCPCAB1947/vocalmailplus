@@ -21,14 +21,14 @@
 <body>
 
 <!-- Cercle micro blanc — unique élément visuel -->
-<div id="version" style="position:fixed;bottom:8px;left:0;right:0;text-align:center;color:#444;font-family:monospace;font-size:14px;">v1.3</div>
+<div id="version" style="position:fixed;bottom:8px;left:0;right:0;text-align:center;color:#444;font-family:monospace;font-size:14px;">v1.4</div>
 <div id="circle">
   <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
 </div>
 
 <script>
 /* ================================================================
-   VOCALMAILPLUS v1.3 (base v10.0 + IA) — Interface 100 % vocale
+   VOCALMAILPLUS v1.4 (base v10.0 + IA) — Interface 100 % vocale
    Écran noir + cercle blanc. Toucher l'écran pour démarrer.
    Connexion au Worker Cloudflare — clé permanente, zéro authentification.
    ================================================================ */
@@ -832,12 +832,10 @@ function boot() {
               () => { S.screen = 'MAIN_MENU'; });
         return;
       }
-      /* Lecture directe : le plus récent d’abord */
-      S.idx = 0; S.step = 1; S.introDone = false;
-      const m0 = S.emails[0];
-      const intro = `Bonjour ${S.userName}. Tu as ${n === 1 ? 'un message non lu' : n + ' messages non lus'}. ` +
-        `Le dernier, reçu ${dateFR(m0.date)}, envoyé par ${m0.from_name}, avec comme objet : ${m0.subject}.`;
-      speak(intro, () => goReadEmail(0));
+      /* VocalMailPlus : question ouverte — on parle librement */
+      S.idx = 0; S.step = 1; S.introDone = true;
+      speak(`Bonjour ${S.userName}. Tu as ${n === 1 ? 'un message non lu' : n + ' messages non lus'}. Que veux-tu faire ?`,
+            () => { S.screen = 'MAIN_MENU'; });
     }
   }).catch(() => {
     speak("Code d'accès refusé ou connexion impossible. Vérifiez le lien.");
