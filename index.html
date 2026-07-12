@@ -21,14 +21,15 @@
 <body>
 
 <!-- Cercle micro blanc — unique élément visuel -->
-<div id="version" style="position:fixed;bottom:8px;left:0;right:0;text-align:center;color:#444;font-family:monospace;font-size:14px;">v1.6</div>
+<div id="version" style="position:fixed;bottom:8px;left:0;right:0;text-align:center;color:#444;font-family:monospace;font-size:14px;">v1.7</div>
+<div id="debug" style="position:fixed;bottom:28px;left:8px;right:8px;text-align:center;color:#555;font-family:monospace;font-size:12px;min-height:16px;"></div>
 <div id="circle">
   <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
 </div>
 
 <script>
 /* ================================================================
-   VOCALMAILPLUS v1.6 (base v10.0 + IA) — Interface 100 % vocale
+   VOCALMAILPLUS v1.7 (base v10.0 + IA) — Interface 100 % vocale
    Écran noir + cercle blanc. Toucher l'écran pour démarrer.
    Connexion au Worker Cloudflare — clé permanente, zéro authentification.
    ================================================================ */
@@ -60,6 +61,7 @@ let _lastSpoken = '';
 
 function speak(txt, then) {
   if (!txt) return;
+  txt = fixTTS(txt); /* désinfection globale : JC → Ji Cé, partout */
   _lastSpoken = txt;
   _q.push({ txt, then });
   if (!_spk) _flush();
@@ -332,9 +334,16 @@ function goHelp() {
 }
 
 /* Compréhension libre : Claude devine l'intention et on l'exécute */
+function dbg(m) {
+  try { document.getElementById('debug').textContent = m; } catch(e) {}
+}
+
 async function aiUnderstand(t) {
+  beep(); /* signal : la phrase part chez Claude */
+  dbg('» ' + t + ' …');
   try {
     const d = await api('/ai/comprend', 'POST', { texte: t, contexte: S.screen });
+    dbg('» ' + t + ' → ' + d.action + (d.to ? ' ' + d.to : '') + (d.recherche ? ' ' + d.recherche : ''));
     switch (d.action) {
       case 'lire':      return goLoadEmails(false);
       case 'anciens':   return goLoadEmails(true);
@@ -354,7 +363,8 @@ async function aiUnderstand(t) {
         speak('Je n’ai pas compris. Dis AIDE pour connaître les possibilités.');
     }
   } catch(e) {
-    speak('Je n’ai pas compris. Dis AIDE pour connaître les possibilités.');
+    dbg('» ' + t + ' → ERREUR ' + (e.message || e));
+    speak('Le cerveau ne répond pas. Réessaie.');
   }
 }
 
@@ -805,14 +815,19 @@ async function goSearch(query) {
   S.screen = 'LOADING'; speak('Je cherche ' + query + '.');
   try {
     const data = await api('/search?q=' + encodeURIComponent(query));
-    S.emails = data.emails || []; S.idx = 0;
+    S.emails = data.emails || []; S.idx = 0; S.step = 1;
     if (!S.emails.length) {
-      speak('Aucun résultat. Dites MENU.');
-      S.screen = 'SEARCH_QUERY'; return;
+      speak(`Aucun message trouvé pour ${query}. Que veux-tu faire ?`);
+      S.screen = 'MAIN_MENU'; return;
     }
-    S.screen = 'SEARCH_RESULTS'; goList();
+    /* Même déroulement que les non-lus : un message à la fois */
+    S.introDone = false;
+    const n = S.emails.length, m0 = S.emails[0];
+    speak(`J’ai trouvé ${n === 1 ? 'un message' : n + ' messages'}. ` +
+          `Le plus récent, reçu ${dateFR(m0.date)}, envoyé par ${m0.from_name}, avec comme objet : ${m0.subject}.`,
+          () => goReadEmail(0));
   } catch(e) {
-    speak('Recherche échouée. Dites MENU.'); S.screen = 'SEARCH_QUERY';
+    speak('La recherche a échoué. Que veux-tu faire ?'); S.screen = 'MAIN_MENU';
   }
 }
 
